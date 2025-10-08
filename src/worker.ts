@@ -77,11 +77,9 @@ setupDBConnection()
               };
               break;
             }
-
-            // Create a new user
+            
             const newUser = await userModel.create({ name: data.name, email: data.email, password: data.password });
 
-            // Optionally, create a JWT token for the newly registered user
             token = sign({ userId: newUser._id }, JWT_SECRET);
 
             result = {
