@@ -2,9 +2,8 @@ import { parentPort } from "worker_threads";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
-// Load models
-import userModel from "./models/User.ts";
 import type { IUser } from "./models/User.interface.ts";
+import userModel from "./models/User.ts";
 import taskModel from "./models/Task.ts";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -15,7 +14,6 @@ function setupDBConnection() {
     mongoose
       .connect(DB_URI)
       .then(() => {
-        console.log("Worker connected to MongoDB");
         resolve(true);
       })
       .catch((err) => {
@@ -30,7 +28,9 @@ setupDBConnection()
     const { sign } = jwt;
     const port = parentPort;
     if (!port) {
-      console.error("Worker must be run inside a Worker Thread (no parentPort).");
+      console.error(
+        "Worker must be run inside a Worker Thread (no parentPort)."
+      );
       process.exit(1);
     }
 
@@ -38,10 +38,57 @@ setupDBConnection()
       const { type, data } = message;
 
       try {
+        let token = "";
         let result = {};
         switch (type) {
+          case "auth":
+            try {
+              const decoded = jwt.verify(data.token, JWT_SECRET) as {
+                userId: string;
+              };
+              const user = await userModel.findById(decoded.userId).lean();
+              if (!user) {
+                result = { status: "failure", message: "User not found." };
+                break;
+              }
+
+              result = {
+                status: "success",
+                payload: {
+                  token: data.token,
+                  user: {
+                    name: user.name,
+                    email: user.email,
+                  },
+                },
+              };
+            } catch (err) {
+              result = { status: "failure", message: "Invalid token." };
+            }
+            break;
+
+          case "verify":
+            try {
+              const user = (await userModel.findOne({
+                email: data.email,
+              })) as IUser;
+              if (user) {
+                result = {
+                  status: "failure",
+                  message: "Email already in use.",
+                };
+                break;
+              } else {
+                result = { status: "success" };
+                break;
+              }
+            } catch (err) {
+              result = { status: "failure", message: "Invalid token." };
+            }
+            break;
+          
           case "login":
-            const { email, password } = data;
+            const { email, password, remember } = data;
             const user = (await userModel.findOne({ email })) as IUser;
             if (!user) {
               result = { status: "failure", message: "User not found." };
@@ -54,13 +101,16 @@ setupDBConnection()
               break;
             }
 
-            let token = sign({ userId: user._id }, JWT_SECRET);
+            token = sign(
+              { userId: user._id },
+              JWT_SECRET,
+              !remember ? { expiresIn: "1d" } : undefined
+            );
             result = {
               status: "success",
               payload: {
                 token,
                 user: {
-                  _id: user._id.toString(),
                   name: user.name,
                   email: user.email,
                 },
@@ -77,10 +127,18 @@ setupDBConnection()
               };
               break;
             }
-            
-            const newUser = await userModel.create({ name: data.name, email: data.email, password: data.password });
 
-            token = sign({ userId: newUser._id }, JWT_SECRET);
+            const newUser = await userModel.create({
+              name: data.name,
+              email: data.email,
+              password: data.password,
+            });
+
+            token = sign(
+              { userId: newUser._id },
+              JWT_SECRET,
+              !data.remember ? { expiresIn: "1d" } : undefined
+            );
 
             result = {
               status: "success",
@@ -88,7 +146,6 @@ setupDBConnection()
               payload: {
                 token,
                 user: {
-                  _id: newUser._id.toString(),
                   name: newUser.name,
                   email: newUser.email,
                 },
@@ -96,21 +153,25 @@ setupDBConnection()
             };
             break;
 
-          case "fetchTasks":
-            const tasks = await taskModel.find({ authorId: data.userId }).lean();
-            result = { status: "success", payload: { tasks } };
+          case "logout":
+            result = { status: "success" };
             break;
 
-          case "crateTask":
-            const newTask = await taskModel.create({
-              ...data.data,
-            });
+          case "fetchTasks":
+            const tasks = await taskModel
+              .find({ authorId: data.userId })
+              .lean();
             result = {
               status: "success",
-              payload: newTask.toObject(),
+              payload: {
+                tasks: tasks.map((task) => ({
+                  ...task,
+                  _id: task._id.toString(),
+                })),
+              },
             };
             break;
-          
+
           case "deleteTask":
             const deletedTask = await taskModel.findOneAndDelete({
               _id: data.taskId,
@@ -124,28 +185,39 @@ setupDBConnection()
               };
             } else {
               result = {
-                status: "success"
+                status: "success",
               };
             }
             break;
 
           case "updateTask":
-            const updatedTask = await taskModel.findOneAndUpdate(
-              { _id: data.taskId, authorId: data.userId },
-              data.updates,
-              { new: true }
-            );
-            if (!updatedTask) {
-              result = {
-                status: "failure",
-                message:
-                  "Task not found or you do not have permission to update it.",
-              };
-            } else {
+            if (!data.taskId) {
+              const newTask = await taskModel.create({
+                ...data.updates,
+                authorId: data.userId,
+              });
               result = {
                 status: "success",
-                payload: updatedTask.toObject(),
+                payload: newTask.toObject(),
               };
+            } else {
+              const updatedTask = await taskModel.findOneAndUpdate(
+                { _id: data.taskId, authorId: data.userId },
+                data.updates,
+                { new: true }
+              );
+              if (!updatedTask) {
+                result = {
+                  status: "failure",
+                  message:
+                    "Task not found or you do not have permission to update it.",
+                };
+              } else {
+                result = {
+                  status: "success",
+                  payload: updatedTask.toObject(),
+                };
+              }
             }
             break;
 

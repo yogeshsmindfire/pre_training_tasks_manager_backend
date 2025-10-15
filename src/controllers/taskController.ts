@@ -24,15 +24,6 @@ export const fetchTasks = (req: any, res: any) => {
   handleWorkerRequest(req, res, "fetchTasks", { userId: req.userData.userId });
 };
 
-export const createTask = (req: any, res: any) => {
-  handleWorkerRequest(req, res, "crateTask", {
-    data: {
-      authorId: req.userData.userId,
-      ...req.body,
-    },
-  });
-};
-
 export const deleteTask = (req: any, res: any) => {
   handleWorkerRequest(req, res, "deleteTask", {
     taskId: req.params.taskId,
