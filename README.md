@@ -1,109 +1,121 @@
-# Tasks Manager (Backend)
+# Task Manager API
 
-A small Node.js + TypeScript backend for a task management service used in a pre-training exercise. The project exposes REST endpoints for authentication and task management, uses MongoDB via Mongoose, and includes a worker thread entrypoint for background processing.
+This is the backend server for a Task Manager application. It allows users to register, log in, and manage their tasks.
 
-This README explains the project structure, how to set up the project locally, available scripts, and a short explanation of key files.
+## Features
 
-## Table of contents
+- User registration and authentication (JWT-based)
+- Create, Read, Update, and Delete (CRUD) operations for tasks
+- Tasks have a title, description, and status (pending, in-progress, completed)
+- Users can only access their own tasks
 
-- Project description
-- Folder structure
-- Requirements
-- Environment variables
-- Install & run
-- Scripts
-- Notes
-
-## Project description
-
-This backend provides basic user authentication (signup/login) and CRUD operations for tasks. It is written in TypeScript and compiled to JavaScript before running. The project uses Express for routing, Mongoose for MongoDB ORM, JWT for authentication, and includes a worker thread entry point for background tasks.
-
-## Folder structure
-
-The repository has the following layout:
+## Folder Structure
 
 ```
-.
-├─ package.json            # npm metadata and scripts
-├─ tsconfig.json           # TypeScript compiler configuration
-├─ nodemon.json            # nodemon configuration for development
-├─ src/
-│  ├─ server.ts            # App entrypoint (HTTP server)
-│  ├─ worker.ts            # Worker thread entrypoint for background jobs
-│  ├─ controllers/
-│  │  ├─ authController.ts # Authentication handlers (signup/login)
-│  │  └─ taskController.ts # Task CRUD handlers
-│  ├─ middleware/
-│  │  └─ authMiddleware.ts # JWT auth middleware
-│  ├─ models/
-│  │  ├─ Task.ts           # Mongoose Task model
-│  │  ├─ User.ts           # Mongoose User model
-│  │  └─ User.interface.ts # Type definitions for User
-│  └─ routes/
-│     ├─ authRoutes.ts     # Auth-related routes
-│     └─ taskRoutes.ts     # Task-related routes
+d:\Pre-training\Tasks\pre_training_tasks_manager_backend\
+├───.gitignore
+├───.prettierignore
+├───.prettierrc.json
+├───eslint.config.js
+├───nodemon.json
+├───package-lock.json
+├───package.json
+├───tsconfig.json
+├───.git\...
+├───.husky\
+│   ├───pre-commit
+│   └───_\
+├───.vscode\
+│   └───launch.json
+├───node_modules\...
+└───src\
+    ├───server.ts
+    ├───worker.ts
+    ├───constants\
+    │   └───constants.ts
+    ├───controllers\
+    │   ├───authController.ts
+    │   └───taskController.ts
+    ├───cron\
+    │   └───taskNotifier.ts
+    ├───middleware\
+    │   └───authMiddleware.ts
+    ├───models\
+    │   ├───Task.ts
+    │   ├───User.interface.ts
+    │   └───User.ts
+    └───routes\
+        ├───authRoutes.ts
+        └───taskRoutes.ts
 ```
 
-## Requirements
+## Local Setup
 
-- Node.js 18+ (suggested)
-- npm 9+ or compatible
-- A running MongoDB instance (local or cloud URI)
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd tasks-server
+    ```
 
-## Environment variables
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-Create a `.env` file in the project root with the following variables (example values):
+3.  **Create a `.env` file** in the root of the project and add the following environment variables:
+    ```
+    PORT=3000
+    MONGO_URI=<your-mongodb-connection-string>
+    JWT_SECRET=<your-jwt-secret>
+    ```
 
-```
-PORT=4000
-MONGO_URI=mongodb://localhost:27017/tasks-db
-JWT_SECRET=your_jwt_secret_here
-```
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+    This will start the server with nodemon, which will automatically restart the server on file changes.
 
-Adjust values to match your environment.
+5.  **Build the project:**
+    ```bash
+    npm run build
+    ```
+    This will transpile the TypeScript code to JavaScript in the `build` directory.
 
-## Install & run
+6.  **Start the production server:**
+    ```bash
+    npm start
+    ```
 
-1. Install dependencies:
+### Scripts
 
-```powershell
-npm install
-```
+-   `start`: Starts the production server.
+-   `prestart`: Runs `npm run build` before starting the server.
+-   `build`: Transpiles TypeScript to JavaScript.
+-   `prebuild`: Runs `npm run lint` before building.
+-   `dev`: Starts the development server with nodemon.
+-   `lint`: Lints the TypeScript files in `src`.
+-   `lint:fix`: Fixes linting errors automatically.
+-   `format`: Formats the code with Prettier.
 
-2. Development (watch/reload with nodemon):
+## API Endpoints
 
-```powershell
-npm run dev
-```
+### Authentication (`/api/auth`)
 
-This uses `nodemon` — ensure `nodemon.json` is configured in the repo.
+-   `GET /login`: Check if user is authenticated.
+-   `POST /login`: Log in a user.
+    -   **Body:** `{ "email": "user@example.com", "password": "password123" }`
+-   `POST /register`: Register a new user.
+    -   **Body:** `{ "name": "Test User", "email": "user@example.com", "password": "password123" }`
+-   `POST /logout`: Log out a user.
+-   `POST /verify`: Verify JWT token.
 
-3. Build and run production:
+### Tasks (`/api/tasks`)
 
-```powershell
-npm run build
-npm start
-```
+All task routes require authentication.
 
-Note: `npm start` runs the compiled `build/server.js`. The project uses TypeScript; compiled output is expected in `build/`.
-
-## Available scripts
-
-- `npm run dev` — Start the server in development mode using `nodemon` and `ts-node`.
-- `npm run build` — Compile TypeScript to JavaScript using `tsc`.
-- `npm start` — Build (via `prestart`) and run the compiled server.
-
-## Key files
-
-- `src/server.ts` — Express app boot and route wiring.
-- `src/worker.ts` — Background worker entrypoint (uses worker threads).
-- `src/controllers/*` — Route handlers for auth and tasks.
-- `src/models/*` — Mongoose models and TypeScript interfaces.
-
-## Notes and troubleshooting
-
-- If you see TypeScript compile issues, run `npx tsc --noEmit` to surface errors.
-- If MongoDB connection fails, check `MONGO_URI` and network accessibility.
-- This project expects the compiled `build/` folder for `npm start`. If you run `node src/server.ts` directly, ensure TypeScript is transpiled or use `ts-node`.
-
-If you'd like, I can also add example .env, a Postman collection, or small Dockerfile to make local development easier. Tell me which one you'd prefer next.
+-   `GET /`: Fetch all tasks for the logged-in user.
+-   `POST /`: Create a new task.
+    -   **Body:** `{ "title": "New Task", "description": "Task description" }`
+-   `POST /:taskId`: Update a task.
+    -   **Body:** `{ "title": "Updated Title", "description": "Updated description", "status": "in-progress" }`
+-   `DELETE /:taskId`: Delete a task.
