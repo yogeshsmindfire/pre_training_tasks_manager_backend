@@ -1,5 +1,11 @@
 import express from "express";
-import { login, register, logout, auth, verify } from "../controllers/authController.ts";
+import {
+   login,
+   register,
+   logout,
+   auth,
+   verify,
+} from "../controllers/authController.ts";
 const router = express.Router();
 
 router.get("/login", auth);

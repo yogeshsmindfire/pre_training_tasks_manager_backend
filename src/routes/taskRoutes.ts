@@ -1,8 +1,8 @@
 import express from "express";
 import {
-  fetchTasks,
-  deleteTask,
-  updateTask,
+   fetchTasks,
+   deleteTask,
+   updateTask,
 } from "../controllers/taskController.ts";
 import { authMiddleware } from "../middleware/authMiddleware.ts";
 const router = express.Router();
