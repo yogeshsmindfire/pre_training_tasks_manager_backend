@@ -4,7 +4,7 @@ import taskRoutes from "./routes/taskRoutes.ts";
 import authRoutes from "./routes/authRoutes.ts";
 import dotenv from "dotenv";
 import cors from "cors";
-// import "./cron/taskNotifier.ts";
+import "./cron/taskNotifier.ts";
 
 dotenv.config();
 
